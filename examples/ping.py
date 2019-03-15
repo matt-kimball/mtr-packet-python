@@ -14,7 +14,7 @@ async def probe(host):
         result = await mtr.probe(host)
 
         #  If the ping got a reply, report the IP address and time
-        if result and result.success:
+        if result.success:
             print('reply from {} in {} ms'.format(
                 result.responder, result.time_ms))
         else:
@@ -31,8 +31,11 @@ else:
 
 #  We need asyncio's event loop to run the coroutine
 loop = asyncio.get_event_loop()
-probe_coroutine = probe(hostname)
 try:
-    loop.run_until_complete(probe_coroutine)
-except mtrpacket.HostResolveError:
-    print("Can't resolve host '{}'".format(hostname))
+    probe_coroutine = probe(hostname)
+    try:
+        loop.run_until_complete(probe_coroutine)
+    except mtrpacket.HostResolveError:
+        print("Can't resolve host '{}'".format(hostname))
+finally:
+    loop.close()

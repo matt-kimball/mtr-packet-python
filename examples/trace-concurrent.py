@@ -122,7 +122,10 @@ def main(hostname):
     screen = curses.initscr()
     try:
         loop = asyncio.get_event_loop()
-        loop.run_until_complete(launch_probes(screen, hostname))
+        try:
+            loop.run_until_complete(launch_probes(screen, hostname))
+        finally:
+            loop.close()
     finally:
         curses.endwin()
 

@@ -38,7 +38,7 @@ with a particular packet size and payload bit-pattern.
 On Linux, probes can be sent with a routing "mark".
 
 mtrpacket works on Linux, MacOS, Windows (with Cygwin) and
-various Unix systems.  Requirements are Python (>= 3.6) and
+various Unix systems.  Requirements are Python (>= 3.5) and
 mtr (>= 0.88).  mtr is distributed with many Linux distributions --
 you may have it installed already.  For other operating systems,
 see https://github.com/traviscross/mtr
@@ -63,7 +63,10 @@ async def probe():
 
 #  Use asyncio's event loop to start the coroutine and wait for the probe
 loop = asyncio.get_event_loop()
-result = loop.run_until_complete(probe())
+try:
+    result = loop.run_until_complete(probe())
+finally:
+    loop.close()
 
 #  Print the probe result
 print(result)
@@ -476,47 +479,46 @@ async def _package_args(host: str, args: Dict[str, Any]) -> Dict[str, str]:
     return pack
 
 
-class ProbeResult(NamedTuple):
+"""A named tuple describing the result of a network probe
 
-    """A named tuple describing the result of a network probe
+A call to MtrPacket.probe will result in an instance of
+ProbeResult with the following members:
 
-    A call to MtrPacket.probe will result in an instance of
-    ProbeResult with the following members:
+success:
+    a bool which is True only if the probe arrived at the target
+    host.
 
-    success:
-        a bool which is True only if the probe arrived at the target
-        host.
+result:
+    the command reply string from mtr-packet.  Common values
+    are 'reply' for a probe which arrives at the target host,
+    'ttl-expired' for a probe which has its "time to live"
+    counter reach zero before arriving at the target host,
+    and 'no-reply' for a probe which is unanswered.
 
-    result:
-        the command reply string from mtr-packet.  Common values
-        are 'reply' for a probe which arrives at the target host,
-        'ttl-expired' for a probe which has its "time to live"
-        counter reach zero before arriving at the target host,
-        and 'no-reply' for a probe which is unanswered.
+    See the mtr-packet(8) man page for further command reply
+    strings.
 
-        See the mtr-packet(8) man page for further command reply
-        strings.
+time_ms:
+    a floating point value indicating the number of milliseconds
+    the probe was in-transit, prior to receiving a result.
+    Will be None in cases other than 'reply' or 'ttl-expired'.
 
-    time_ms:
-        a floating point value indicating the number of milliseconds
-        the probe was in-transit, prior to receiving a result.
-        Will be None in cases other than 'reply' or 'ttl-expired'.
+responder:
+    a string with the IP address of the host responding to the
+    probe.  Will be None in cases other than 'reply' or 'ttl-expired'.
 
-    responder:
-        a string with the IP address of the host responding to the
-        probe.  Will be None in cases other than 'reply' or 'ttl-expired'.
-
-    mpls:
-        a list of Mpls tuples representing the MPLS label stack present in
-        a 'ttl-expired' response, when Multiprotocol Label Switching (MPLS)
-        is used to route the probe.
-    """
-
-    success: bool
-    result: str
-    time_ms: Optional[float]
-    responder: Optional[str]
-    mpls: List['Mpls']
+mpls:
+    a list of Mpls tuples representing the MPLS label stack present in
+    a 'ttl-expired' response, when Multiprotocol Label Switching (MPLS)
+    is used to route the probe.
+"""
+ProbeResult = NamedTuple('ProbeResult', [
+    ('success', bool),
+    ('result', str),
+    ('time_ms', Optional[float]),
+    ('responder', Optional[str]),
+    ('mpls', List['Mpls'])
+])
 
 
 def _make_probe_result(
@@ -556,37 +558,36 @@ def _make_probe_result(
     return ProbeResult(success, command_result, time_ms, responder, mpls)
 
 
-class Mpls(NamedTuple):
+"""A named tuple describing an MPLS header.
 
-    """A named tuple describing an MPLS header.
+Multiprotocol Label Switching (MPLS) routes packet using explicit
+headers attach to the packet, rather than using the IP address
+for routing.  When a probe's time-to-live (TTL) expires, and MPLS is
+used at the router where the expiration occurs, the MPLS headers
+attached to the packet may be returned with the TTL expiration
+notification.
 
-    Multiprotocol Label Switching (MPLS) routes packet using explicit
-    headers attach to the packet, rather than using the IP address
-    for routing.  When a probe's time-to-live (TTL) expires, and MPLS is
-    used at the router where the expiration occurs, the MPLS headers
-    attached to the packet may be returned with the TTL expiration
-    notification.
+Mpls contains one of those headers, with:
 
-    Mpls contains one of those headers, with:
+label:
+    the numeric MPLS label.
 
-    label:
-        the numeric MPLS label.
+traffic_class:
+    the traffic class (for quality of service).
+    This field was formerly known as "experimental use".
 
-    traffic_class:
-        the traffic class (for quality of service).
-        This field was formerly known as "experimental use".
+bottom_of_stack:
+    a boolean indicating whether the label terminates the stack.
 
-    bottom_of_stack:
-        a boolean indicating whether the label terminates the stack.
-
-    ttl:
-        the time-to-live of the MPLS header
-    """
-
-    label: int
-    traffic_class: int
-    bottom_of_stack: bool
-    ttl: int
+ttl:
+    the time-to-live of the MPLS header
+"""
+Mpls = NamedTuple('Mpls', [
+    ('label', int),
+    ('traffic_class', int),
+    ('bottom_of_stack', bool),
+    ('ttl', int)
+])
 
 
 class StateError(Exception):

@@ -46,8 +46,11 @@ else:
 
 #  We need asyncio's event loop to run the coroutine
 loop = asyncio.get_event_loop()
-trace_coroutine = trace(hostname)
 try:
-    loop.run_until_complete(trace_coroutine)
-except mtrpacket.HostResolveError:
-    print("Can't resolve host '{}'".format(hostname))
+    trace_coroutine = trace(hostname)
+    try:
+        loop.run_until_complete(trace_coroutine)
+    except mtrpacket.HostResolveError:
+        print("Can't resolve host '{}'".format(hostname))
+finally:
+    loop.close()

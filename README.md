@@ -15,7 +15,7 @@ with a particular packet size and payload bit-pattern.
 On Linux, probes can be sent with a routing "mark".
 
 mtrpacket works on Linux, MacOS, Windows (with Cygwin) and
-various Unix systems.  Requirements are Python (>= 3.6) and
+various Unix systems.  Requirements are Python (>= 3.5) and
 mtr (>= 0.88).  mtr is distributed with many Linux distributions --
 you may have it installed already.  For other operating systems,
 see https://github.com/traviscross/mtr
@@ -40,7 +40,10 @@ async def probe():
 
 #  Use asyncio's event loop to start the coroutine and wait for the probe
 loop = asyncio.get_event_loop()
-result = loop.run_until_complete(probe())
+try:
+    result = loop.run_until_complete(probe())
+finally:
+    loop.close()
 
 #  Print the probe result
 print(result)
