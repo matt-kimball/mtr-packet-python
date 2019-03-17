@@ -124,7 +124,7 @@ async def launch_probes(screen, hostname):
 
 #  Wait until a SPACE character to be read on stdin.
 #  Afterward, cancel the probe task so we can exit
-async def wait_for_spacebar():
+async def wait_for_spacebar(probe_task):
     exit_event = asyncio.Event()
 
     def read_callback():
@@ -139,22 +139,21 @@ async def wait_for_spacebar():
     await exit_event.wait()
     loop.remove_reader(sys.stdin)
 
+    #  After spacebar is pressed, stop sending probes
+    probe_task.cancel()
+
 
 #  The main asynchronous routine, running within the asyncio event loop
 async def main_task(hostname):
     screen = curses.initscr()
     try:
-        probe_task = asyncio.ensure_future(
-            launch_probes(screen, hostname))
-        spacebar_task = asyncio.ensure_future(wait_for_spacebar())
+        probe_task = asyncio.ensure_future(launch_probes(screen, hostname))
+        spacebar_task = asyncio.ensure_future(wait_for_spacebar(probe_task))
 
-        await spacebar_task
-
-        probe_task.cancel()
         try:
-            #  Wait for the probe task to complete cancellation
-            await probe_task
+            await asyncio.gather(probe_task, spacebar_task)
         except asyncio.CancelledError:
+            #  It is normal for probe_task to be cancelled
             pass
     finally:
         curses.endwin()
