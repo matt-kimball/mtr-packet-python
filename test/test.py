@@ -82,6 +82,36 @@ class TestMissingExecutable(unittest.TestCase):
                 asyncio_run(self.async_missing_exec())
 
 
+class TestCancellation(unittest.TestCase):
+
+    """Test whether a task waiting on a probe can be cancelled
+
+    There was a problem where cancelling a task waiting on a
+    probe caused exceptions within the cancellation due to a
+    cancelled future being completed with an exception.
+
+    Test for that.
+    """
+
+    async def command_wait(self, mtr):
+        await mtr.probe('127.255.255.255', timeout=60)
+
+    async def async_launch(self):
+        async with mtrpacket.MtrPacket() as mtr:
+            coro = self.command_wait(mtr)
+            task = asyncio.ensure_future(coro)
+            await asyncio.sleep(1)
+            task.cancel()
+            try:
+                await task
+            except asyncio.CancelledError:
+                pass
+
+
+    def test_cancel(self):
+        asyncio_run(self.async_launch())
+
+
 class TestCommands(unittest.TestCase):
 
     """Bind a socket as a substitute for mtr-packet and test commands passed

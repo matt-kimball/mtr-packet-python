@@ -133,6 +133,23 @@ class MtrPacket:
 
         await self.close()
 
+    def _raise_exception_in_command_futures(self, exception) -> None:
+
+        """Raise an anception in all command futures
+
+        If the dispatch tasks terminates before all command futures
+        have completed, because the subprocess terminated,
+        because of an unexpected exception, or because the task
+        was cancelled, we need to complete all command futures
+        with an exception."""
+
+        for future in self._command_futures.values():
+            #  the Future may have already been cancelled
+            if not future.done():
+                future.set_exception(exception)
+
+        self._command_futures.clear()
+
     async def _dispatch_results(self) -> None:
 
         """Task which handles results printed to the stdout of mtr-packet
@@ -151,15 +168,13 @@ class MtrPacket:
                 line = await self.process.stdout.readline()
                 self._dispatch_result_line(line.decode('ascii'))
         finally:
-            for future in self._command_futures.values():
-                exc_description = \
-                    'failure to communicate with subprocess "{}"'.format(
-                        self._subprocess_name)
-                exc_description += "  (is it installed and in the PATH?)"
+            exc_description = \
+                'failure to communicate with subprocess "{}"'.format(
+                    self._subprocess_name)
+            exc_description += "  (is it installed and in the PATH?)"
+            exception = ProcessError(exc_description)
 
-                exception = ProcessError(exc_description)
-                future.set_exception(exception)
-            self._command_futures.clear()
+            self._raise_exception_in_command_futures(exception)
 
     def _generate_command_token(self) -> str:
 
@@ -209,7 +224,10 @@ class MtrPacket:
         future = self._command_futures.get(token)
         if future:
             del self._command_futures[token]
-            future.set_result(result_tuple)
+
+            #  if the command task is canceled, the future may be done
+            if not future.done():
+                future.set_result(result_tuple)
 
     async def _command(
             self,
