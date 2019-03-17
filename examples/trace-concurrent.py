@@ -55,6 +55,8 @@ def redraw(screen, all_records):
         if record.success:
             break
 
+    screen.addstr('\n(press SPACEBAR to exit)\n')
+
     screen.refresh()
 
 
@@ -97,37 +99,76 @@ async def launch_probes(screen, hostname):
     async with mtrpacket.MtrPacket() as mtr:
         probe_tasks = []
 
-        for ttl in range(1, 32):
-            #  We need a new ProbeRecord for each ttl value
-            record = ProbeRecord(ttl)
-            all_records.append(record)
+        try:
+            for ttl in range(1, 32):
+                #  We need a new ProbeRecord for each ttl value
+                record = ProbeRecord(ttl)
+                all_records.append(record)
 
-            #  Start a new asyncio task for this probe
-            probe_coro = probe_ttl(mtr, hostname, ttl, record, redraw_hops)
-            probe_tasks.append(asyncio.ensure_future(probe_coro))
+                #  Start a new asyncio task for this probe
+                probe_coro = probe_ttl(mtr, hostname, ttl, record, redraw_hops)
+                probe_tasks.append(asyncio.ensure_future(probe_coro))
 
-            #  Give each probe a slight delay to avoid flooding
-            #  the network interface, which might perturb the
-            #  results
-            await asyncio.sleep(0.05)
+                #  Give each probe a slight delay to avoid flooding
+                #  the network interface, which might perturb the
+                #  results
+                await asyncio.sleep(0.05)
 
-        #  Wait for all tasks to complete
-        await asyncio.gather(*probe_tasks)
+            await asyncio.gather(*probe_tasks)
+        finally:
+            #  We may have been cancelled, so we should cancel
+            #  the probe tasks we started to clean up
+            for task in probe_tasks:
+                task.cancel()
+
+
+#  Wait until a SPACE character to be read on stdin.
+#  Afterward, cancel the probe task so we can exit
+async def wait_for_spacebar():
+    exit_event = asyncio.Event()
+
+    def read_callback():
+        #  Read a single character
+        #  If we tried to read more, we may block other tasks
+        key = sys.stdin.read(1)
+        if key == ' ':
+            exit_event.set()
+
+    loop = asyncio.get_event_loop()
+    loop.add_reader(sys.stdin, read_callback)
+    await exit_event.wait()
+    loop.remove_reader(sys.stdin)
+
+
+#  The main asynchronous routine, running within the asyncio event loop
+async def main_task(hostname):
+    screen = curses.initscr()
+    try:
+        probe_task = asyncio.ensure_future(
+            launch_probes(screen, hostname))
+        spacebar_task = asyncio.ensure_future(wait_for_spacebar())
+
+        await spacebar_task
+
+        probe_task.cancel()
+        try:
+            #  Wait for the probe task to complete cancellation
+            await probe_task
+        except asyncio.CancelledError:
+            pass
+    finally:
+        curses.endwin()
 
 
 #  Use asyncio's event loop for the main body of our program.
 #  We want to use curses for displaying results throughout our
 #  execution, so we'll wrap the event loop with curses initialization.
 def main(hostname):
-    screen = curses.initscr()
+    loop = asyncio.get_event_loop()
     try:
-        loop = asyncio.get_event_loop()
-        try:
-            loop.run_until_complete(launch_probes(screen, hostname))
-        finally:
-            loop.close()
+        loop.run_until_complete(main_task(hostname))
     finally:
-        curses.endwin()
+        loop.close()
 
 
 #  Get the hostname to trace to on the commandline
