@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="mtrpacket",
-    version="0.1.0",
+    version="0.2.0",
     author="Matt Kimball",
     author_email="matt.kimball@gmail.com",
     description="Asynchronous network probes for Python",
