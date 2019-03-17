@@ -1,4 +1,3 @@
-
 # mtrpacket
 
 ### Asynchronous network probes for Python
@@ -158,25 +157,25 @@ An integer value to use as the packet "mark" for the Linux routing subsystem.
 
 A call to `MtrPacket.probe` will result in an instance of the named tuple `ProbeResult`, which contains the following fields:
 
-`success`
+#### `ProbeResult.success`
 
 A boolean which is `True` only if the probe arrived at the target host.
 
-`result`
+#### `ProbeResult.result`
 
 The command reply string from `mtr-packet`.  Common values are `'reply'` for a probe which arrives at the target host, `'ttl-expired'` for a probe which has its "time to live" counter reach zero before arriving at the target host, and `'no-reply'` for a probe which is unanswered before its timeout value.
 
 See the `mtr-packet(8)` man page for error conditions which may result in other command reply strings.
 
-`time_ms`
+#### `ProbeResult.time_ms`
 
 A floating point value indicating the number of milliseconds the probe was in-transit, prior to receiving a result.  This value will be `None` in cases other than `'reply'` or `'ttl-expired'`.
 
-`responder`
+#### `ProbeResult.responder`
  
  A string with the IP address of the host responding to the probe.  Will be `None` in cases other than `'reply'` or `'ttl-expired'`.
 
-`mpls`
+#### `ProbeResult.mpls`
 
 A list of `Mpls` named tuples representing the MPLS label stack present in a `'ttl-expired'` response, when Multiprotocol Label Switching (MPLS) is used to route the probe.
 
@@ -185,21 +184,21 @@ A list of `Mpls` named tuples representing the MPLS label stack present in a `'t
 
 Multiprotocol Label Switching ("MPLS") routes packets using explicit headers attach to the packet, rather than using the IP address for routing.  When a probe's time-to-live ("TTL") expires, and MPLS is used at the router where the expiration occurs, the MPLS headers attached to the packet may be returned with the TTL expiration notification.
 
-The `Mpls` named tuple contains the fields one of those headers, with:
+The `Mpls` named tuple contains the fields of one of those headers, with:
 
-`label`
+#### `Mpls.label`
 
 The MPLS label as an integer.
 
-`traffic_class`
+#### `Mpls.traffic_class`
 
 The integer traffic class value (for quality of service).  In prior verisons of MPLS, this field was known as "experimental use".
 
-`bottom_of_stack`
+#### `Mpls.bottom_of_stack`
 
 A boolean indicating whether the label terminates the stack.
 
-`ttl`
+#### `Mpls.ttl`
 
 An integer with the "time to live" value of the MPLS header
 
