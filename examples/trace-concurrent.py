@@ -44,8 +44,10 @@ class ProbeRecord:
 
 #  When we've got a result for one of our probes, we'll regenerate
 #  the screen output, and allow curses to refresh it.
-def redraw(screen, all_records):
+def redraw(screen, hostname, all_records):
     screen.erase()
+
+    screen.addstr('Tracing to "{}"\n\n'.format(hostname))
 
     for record in all_records:
         record.print(screen)
@@ -94,7 +96,7 @@ async def launch_probes(screen, hostname):
     #  When one of the probes has a result to display, we'll use
     #  this callback to display it
     def redraw_hops():
-        redraw(screen, all_records)
+        redraw(screen, hostname, all_records)
 
     async with mtrpacket.MtrPacket() as mtr:
         probe_tasks = []
@@ -153,8 +155,15 @@ async def main_task(hostname):
         try:
             await asyncio.gather(probe_task, spacebar_task)
         except asyncio.CancelledError:
-            #  It is normal for probe_task to be cancelled
+            #  It is normal for probe_task to be cancelled by
+            #  the spacebar task
             pass
+        finally:
+            #  We need to clean up by cancelling if gather has returned
+            #  early, perhaps due to an exception raised in one of
+            #  our tasks.
+            probe_task.cancel()
+            spacebar_task.cancel()
     finally:
         curses.endwin()
 
@@ -166,6 +175,8 @@ def main(hostname):
     loop = asyncio.get_event_loop()
     try:
         loop.run_until_complete(main_task(hostname))
+    except mtrpacket.HostResolveError:
+        print("Can't resolve host '{}'".format(hostname))
     finally:
         loop.close()
 
