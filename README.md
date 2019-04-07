@@ -152,6 +152,12 @@ An integer value to use as the packet "mark" for the Linux routing subsystem.
 
 `StateError` is raised if the MtrPacket session hasn't been opened.
 
+#### `MtrPacket.clear_dns_cache()`
+
+For performance reasons, when repeatedly probing a particular host, MtrPacket will only resolve the hostname one time, and will use the same IP address for subsequent probes to the same host.
+
+`clear_dns_cache` can be used to clear that cache, forcing new resolution of hostnames to IP addresses for future probes.  This can be useful for scripts which are intended to run for an extended period of time.  (Hours or longer)
+
 ### ProbeResult
 #### *namedtuple* `ProbeResult(`*success*, *result*, *time_ms*, *responder*, *mpls*`)`
 

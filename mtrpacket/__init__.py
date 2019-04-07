@@ -93,6 +93,16 @@ import socket
 from typing import Any, Dict, List, NamedTuple, Optional, Tuple
 
 
+#
+#  We resolve a hostname to an IP address in order to send a probe.
+#  Because the DNS resolution can have a significant impact on
+#  performance when there are hundreds of simultaneous probes
+#  in-flight, we will cache IP addresses for hostnames for
+#  an MtrPacket session.
+#
+DnsCacheType = Dict[Tuple[str, Optional[int]], Tuple[str, int]]
+
+
 class MtrPacket:
 
     """The mtr-packet subprocess which can send network probes
@@ -111,6 +121,7 @@ class MtrPacket:
         self._result_task = None
         self._next_command_token = 1
         self._subprocess_name = ''
+        self._dns_cache = {}
 
     def __repr__(self):
         rep = '<MtrPacket'
@@ -423,13 +434,33 @@ class MtrPacket:
         Raises StateError if the MtrPacket session hasn't been opened.
         """
 
-        pack = await _package_args(host, args)
+        pack = await _package_args(self._dns_cache, host, args)
 
         return _make_probe_result(*await self._command('send-probe', pack))
 
+    def clear_dns_cache(self) -> None:
+
+        """Clear MtrPacket's DNS cache
+
+        For performance reasons, when repeatedly probing a particular
+        host, MtrPacket will only resolve the hostname one time, and
+        will use the same IP address for subsequent probes to
+        the same host.
+
+        clear_dns_cache can be used to clear that cache, forcing
+        new resolution of hostnames to IP addresses for future probes.
+        This can be useful for scripts which are intended to run
+        for an extended period of time.  (Hours, or longer)
+        """
+
+        self._dns_cache = {}
+
 
 async def _resolve_ip(
-        host: str, target_ip_version: Optional[int]) -> Tuple[str, int]:
+        dns_cache: DnsCacheType,
+        host: str,
+        target_ip_version: Optional[int]
+) -> Tuple[str, int]:
 
     """Asynchronously resolve a hostname to an IP address
 
@@ -437,6 +468,10 @@ async def _resolve_ip(
     IP version parameter can be used to require either an IPv4 or
     IPv6 address.
     """
+
+    cache_key = (host, target_ip_version)
+    if cache_key in dns_cache:
+        return dns_cache[cache_key]
 
     try:
         addrinfo = await asyncio.get_event_loop().getaddrinfo(host, 0)
@@ -448,16 +483,24 @@ async def _resolve_ip(
 
         if family == socket.AF_INET:
             if not target_ip_version or target_ip_version == 4:
-                return (addr[0], 4)
+                dns_addr = (addr[0], 4)
+                dns_cache[cache_key] = dns_addr
+                return dns_addr
 
         if family == socket.AF_INET6:
             if not target_ip_version or target_ip_version == 6:
-                return (addr[0], 6)
+                dns_addr = (addr[0], 6)
+                dns_cache[cache_key] = dns_addr
+                return dns_addr
 
     raise HostResolveError("Unable to resolve '{}'".format(host))
 
 
-async def _package_args(host: str, args: Dict[str, Any]) -> Dict[str, str]:
+async def _package_args(
+        dns_cache: DnsCacheType,
+        host: str,
+        args: Dict[str, Any]
+) -> Dict[str, str]:
 
     """Package the arguments from a call to MtrPacket.probe
 
@@ -476,14 +519,18 @@ async def _package_args(host: str, args: Dict[str, Any]) -> Dict[str, str]:
 
     pack = {}
 
-    (host_ip, host_ip_version) = await _resolve_ip(host, target_ip_version)
+    (host_ip, host_ip_version) = await _resolve_ip(
+        dns_cache, host, target_ip_version)
+
     if host_ip_version == 4:
         pack['ip-4'] = host_ip
     elif host_ip_version == 6:
         pack['ip-6'] = host_ip
 
     if 'local_ip' in args:
-        (local_ip, _) = await _resolve_ip(args['local_ip'], host_ip_version)
+        (local_ip, _) = await _resolve_ip(
+            dns_cache, args['local_ip'], host_ip_version)
+
         if host_ip_version == 4:
             pack['local-ip-4'] = local_ip
         elif host_ip_version == 6:
