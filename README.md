@@ -55,6 +55,17 @@ result = await mtr.probe(
 
 Further examples of usage are available in [the mtrpacket GitHub repository](https://github.com/matt-kimball/mtr-packet-python/tree/master/examples)
 
+## Compatibility Notes
+
+mtr version 0.93 has a known issue where a probe cannot be created without specifying a local IP address.  This will result in 'invalid-argument' results from sent probes.  You can work around this issue by specifying a local ip address when sending a probe:
+
+```python
+import socket
+
+local_addr = socket.gethostbyname(socket.gethostname())
+result = await mtr.probe('example.com', local_ip=local_addr)
+```
+
 ## API Reference
 
 ### MtrPacket

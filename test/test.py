@@ -157,6 +157,17 @@ class TestCommands(unittest.TestCase):
         assert result.responder == '8.8.4.4'
         assert result.time_ms == 1.0
 
+        out_queue.put_nowait('reply ip-4 127.0.1.1 round-trip-time 500')
+        result = await mtr.probe('127.0.1.1', local_ip='127.0.0.1')
+        command = await in_queue.get()
+
+        assert command.command == 'send-probe'
+        assert command.args['ip-4'] == '127.0.1.1'
+        assert command.args['local-ip-4'] == '127.0.0.1'
+        assert result.success
+        assert result.responder == '127.0.1.1'
+        assert result.time_ms == 0.5
+
         out_queue.put_nowait('no-reply')
         result = await mtr.probe('::1', ttl=4)
         command = await in_queue.get()

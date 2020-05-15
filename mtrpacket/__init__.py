@@ -527,15 +527,6 @@ async def _package_args(
     elif host_ip_version == 6:
         pack['ip-6'] = host_ip
 
-    if 'local_ip' in args:
-        (local_ip, _) = await _resolve_ip(
-            dns_cache, args['local_ip'], host_ip_version)
-
-        if host_ip_version == 4:
-            pack['local-ip-4'] = local_ip
-        elif host_ip_version == 6:
-            pack['local-ip-6'] = local_ip
-
     validargs = [
         'protocol', 'port', 'local-port', 'timeout', 'ttl', 'size',
         'bit-pattern', 'tos', 'mark'
@@ -544,7 +535,15 @@ async def _package_args(
     for argname in args:
         keyname = argname.replace('_', '-')
 
-        if keyname in validargs:
+        if argname == 'local_ip':
+            (local_ip, _) = await _resolve_ip(
+                    dns_cache, args[argname], host_ip_version)
+
+            if host_ip_version == 4:
+                pack['local-ip-4'] = local_ip
+            elif host_ip_version == 6:
+                pack['local-ip-6'] = local_ip
+        elif keyname in validargs:
             pack[keyname] = str(args[argname])
         else:
             raise TypeError(
