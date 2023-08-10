@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="mtrpacket",
-    version="1.0.0",
+    version="1.0.1",
     python_requires=">=3.5",
     author="Matt Kimball",
     author_email="matt.kimball@gmail.com",
