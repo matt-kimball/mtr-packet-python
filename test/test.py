@@ -192,6 +192,26 @@ class TestCommands(unittest.TestCase):
         assert result.mpls[1].bottom_of_stack is True
         assert result.mpls[1].ttl == 6
 
+        out_queue.put_nowait('reply ip-4 127.0.0.1 round-trip-time 1000')
+        result = await mtr.probe('localhost', ip_version=4)
+        command = await in_queue.get()
+
+        assert command.command == 'send-probe'
+        assert 'ip-4' in command.args
+        assert result.success
+        assert result.responder == '127.0.0.1'
+        assert result.time_ms == 1.0
+
+        out_queue.put_nowait('reply ip-6 ::1 round-trip-time 1000')
+        result = await mtr.probe('ip6-localhost', ip_version=6)
+        command = await in_queue.get()
+
+        assert command.command == 'send-probe'
+        assert 'ip-6' in command.args
+        assert result.success
+        assert result.responder == '::1'
+        assert result.time_ms == 1.0
+
     async def async_commands(self):
         in_queue = asyncio.Queue()
         out_queue = asyncio.Queue()

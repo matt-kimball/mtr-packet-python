@@ -543,6 +543,8 @@ async def _package_args(
                 pack['local-ip-4'] = local_ip
             elif host_ip_version == 6:
                 pack['local-ip-6'] = local_ip
+        elif argname == 'ip_version':
+            pass  # We've handled 'ip_version' above.
         elif keyname in validargs:
             pack[keyname] = str(args[argname])
         else:
