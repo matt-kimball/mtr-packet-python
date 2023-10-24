@@ -37,9 +37,13 @@ with specific source and destination ports.  Probes can be sent
 with a particular packet size and payload bit-pattern.
 On Linux, probes can be sent with a routing "mark".
 
+When used in conjunction with iproute2, mtrpacket can send probes from
+within a Linux vrf.
+
 mtrpacket works on Linux, MacOS, Windows (with Cygwin) and
 various Unix systems.  Requirements are Python (>= 3.5) and
-mtr (>= 0.88).  mtr is distributed with many Linux distributions --
+mtr (>= 0.88).  iproute2 (>=4.10.0) is required for vrf support.
+mtr is distributed with many Linux distributions --
 you may have it installed already.  For other operating systems,
 see https://github.com/traviscross/mtr
 
@@ -90,6 +94,7 @@ result = await mtr.probe(
 import asyncio
 import os
 import socket
+import shutil
 from typing import Any, Dict, List, NamedTuple, Optional, Tuple
 
 
@@ -113,9 +118,9 @@ class MtrPacket:
     processed asynchronously, as they arrive.
     """
 
-    def __init__(self):
+    def __init__(self, vrf=None):
+        self.vrf = vrf
         self.process = None
-
         self._opened = False
         self._command_futures = {}
         self._result_task = None
@@ -284,6 +289,9 @@ class MtrPacket:
         the MTR_PACKET environment variable can be used to specify
         an alternate subprocess executable.
 
+        If the 'vrf' argument is passed to the MtrPacket() constructor,
+        'mtr-packet' is execcuted from within the vrf that is defined.
+
         As an alternative to calling open() explicitly, an 'async with'
         block can be used with the MtrPacket object to open and close the
         subprocess.
@@ -292,6 +300,9 @@ class MtrPacket:
         if the subprocess doesn't support sending packets.
 
         Raises StateError if the subprocess is already open.
+
+        Raises SystemError if 'iproute2' cannot be found in the system path
+        while 'vrf' has been passed.
         """
 
         if self._opened:
@@ -300,6 +311,12 @@ class MtrPacket:
         mtr_packet_executable = os.environ.get('MTR_PACKET')
         if not mtr_packet_executable:
             mtr_packet_executable = 'mtr-packet'
+
+        if self.vrf is not None:
+            if shutil.which('ip') is not None:
+                mtr_packet_executable = f'ip vrf exec {self.vrf} mtr-packet'
+            else:
+                raise SystemError('iproute2 not found')
 
         self._subprocess_name = mtr_packet_executable
         self.process = await asyncio.create_subprocess_shell(
