@@ -118,8 +118,8 @@ class MtrPacket:
     processed asynchronously, as they arrive.
     """
 
-    def __init__(self, vrf=None):
-        self.vrf = vrf
+    def __init__(self, command_prefix=None):
+        self._command_prefix = command_prefix
         self.process = None
         self._opened = False
         self._command_futures = {}
@@ -312,9 +312,9 @@ class MtrPacket:
         if not mtr_packet_executable:
             mtr_packet_executable = 'mtr-packet'
 
-        if self.vrf is not None:
+        if self._command_prefix is not None:
             if shutil.which('ip') is not None:
-                mtr_packet_executable = f'ip vrf exec {self.vrf} mtr-packet'
+                mtr_packet_executable = f'{self._command_prefix} mtr-packet'
             else:
                 raise SystemError('iproute2 not found')
 
