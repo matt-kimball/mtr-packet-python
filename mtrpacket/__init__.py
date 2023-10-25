@@ -37,12 +37,13 @@ with specific source and destination ports.  Probes can be sent
 with a particular packet size and payload bit-pattern.
 On Linux, probes can be sent with a routing "mark".
 
-When used in conjunction with iproute2, mtrpacket can send probes from
-within a Linux vrf.
+When iproute2 is available, a command prefix can be constructed
+that makes use of various iproute2 functionality to which mtr-packet
+can be called.
 
 mtrpacket works on Linux, MacOS, Windows (with Cygwin) and
 various Unix systems.  Requirements are Python (>= 3.5) and
-mtr (>= 0.88).  iproute2 (>=4.10.0) is required for vrf support.
+mtr (>= 0.88).  iproute2 (>=4.10.0) is required for command prefix support.
 mtr is distributed with many Linux distributions --
 you may have it installed already.  For other operating systems,
 see https://github.com/traviscross/mtr
@@ -289,8 +290,8 @@ class MtrPacket:
         the MTR_PACKET environment variable can be used to specify
         an alternate subprocess executable.
 
-        If the 'vrf' argument is passed to the MtrPacket() constructor,
-        'mtr-packet' is execcuted from within the vrf that is defined.
+        If the 'command_prefix' argument is passed to the MtrPacket() constructor,
+        'mtr-packet' is executed using the command prefix specified.
 
         As an alternative to calling open() explicitly, an 'async with'
         block can be used with the MtrPacket object to open and close the
@@ -302,7 +303,7 @@ class MtrPacket:
         Raises StateError if the subprocess is already open.
 
         Raises SystemError if 'iproute2' cannot be found in the system path
-        while 'vrf' has been passed.
+        while 'command_prefix' has been passed.
         """
 
         if self._opened:

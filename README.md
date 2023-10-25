@@ -6,7 +6,7 @@
 
 `mtrpacket` supports a variety of probe customization options. Time-to-live (TTL) may be explicitly used for `traceroute`-like functionality.  Probes can be sent using a variety of protocols:  ICMP, UDP, TCP and SCTP.  UDP, TCP and SCTP probes may be sent with specific source and destination ports.  Probes can be sent with a particular packet size and payload bit-pattern. On Linux, probes can be sent with a routing "mark".
 
-`mtrpacket` works on Linux, MacOS, Windows (under Cygwin) and various Unix systems.  Requirements are Python 3.5 (or newer) and `mtr`  0.88 (or newer).   `mtr` is distributed with many Linux distributions -- you may have it installed already.  For other operating systems, see [the mtr Github repository](https://github.com/traviscross/mtr).
+`mtrpacket` works on Linux, MacOS, Windows (under Cygwin) and various Unix systems.  Requirements are Python 3.5 (or newer) and `mtr` 0.88 (or newer).  Optionally, `iproute2` 4.10.0 (or newer) for command prefix support that allows `mtr-packet` to run in more complex network environments.  `mtr` is distributed with many Linux distributions -- you may have it installed already.  For other operating systems, see [the mtr Github repository](https://github.com/traviscross/mtr).
 
 ## Installation
 
