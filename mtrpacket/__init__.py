@@ -111,17 +111,28 @@ class MtrPacket:
     and request that the subprocess send network probes.  Multiple
     probe requests can be simultaneously in-transit, with results
     processed asynchronously, as they arrive.
+
+    If an argument is provided to the constructor, it will be used
+    as the shell command to invoke the 'mtr-packet' subprocess.
+    If no such argument is provided, the contents of the `MTR_PACKET`
+    environment variable will be used, if set.  Otherwise, the
+    default command will be 'mtr-packet'.
     """
 
-    def __init__(self):
+    def __init__(self, mtr_packet_command=None):
         self.process = None
 
         self._opened = False
         self._command_futures = {}
         self._result_task = None
         self._next_command_token = 1
-        self._subprocess_name = ''
         self._dns_cache = {}
+
+        if not mtr_packet_command:
+            mtr_packet_command = os.environ.get('MTR_PACKET')
+        if not mtr_packet_command:
+            mtr_packet_command = 'mtr-packet'
+        self._subprocess_command = mtr_packet_command
 
     def __repr__(self):
         rep = '<MtrPacket'
@@ -181,7 +192,7 @@ class MtrPacket:
         finally:
             exc_description = \
                 'failure to communicate with subprocess "{}"'.format(
-                    self._subprocess_name)
+                    self._subprocess_command)
             exc_description += "  (is it installed and in the PATH?)"
             exception = ProcessError(exc_description)
 
@@ -258,7 +269,7 @@ class MtrPacket:
 
         if self._result_task.done():
             exc_description = 'subprocess "{}" exited'.format(
-                self._subprocess_name)
+                self._subprocess_command)
             raise ProcessError(exc_description)
 
         token = self._generate_command_token()
@@ -279,10 +290,9 @@ class MtrPacket:
         """Launch an mtr-packet subprocess to accept commands
         (asynchronous)
 
-        Start a subprocess for accepting probe commands.  The 'mtr-packet'
-        executable in the PATH is used by default, however,
-        the MTR_PACKET environment variable can be used to specify
-        an alternate subprocess executable.
+        If a command argument was passed to the constructor of the
+        `MtrPacket` object, that command will be used to launch the
+        subprocess.
 
         As an alternative to calling open() explicitly, an 'async with'
         block can be used with the MtrPacket object to open and close the
@@ -297,13 +307,8 @@ class MtrPacket:
         if self._opened:
             raise StateError('already open')
 
-        mtr_packet_executable = os.environ.get('MTR_PACKET')
-        if not mtr_packet_executable:
-            mtr_packet_executable = 'mtr-packet'
-
-        self._subprocess_name = mtr_packet_executable
         self.process = await asyncio.create_subprocess_shell(
-            mtr_packet_executable,
+            self._subprocess_command,
             stdin=asyncio.subprocess.PIPE,
             stdout=asyncio.subprocess.PIPE)
 
